@@ -28,17 +28,22 @@ class NewsManager
 	*/
 	public function listNews($limit = null, $offset = null): array
 	{
-		$sql = 'SELECT * FROM `news`';
-        $params = [];
+        try {
+            $sql = 'SELECT * FROM `news`';
+            $params = [];
 
-        if ($limit !== null && $offset !== null) {
-            $sql .= ' LIMIT ? OFFSET ?';
-            $params = [$limit, $offset];
+            if ($limit !== null && $offset !== null) {
+                $sql .= ' LIMIT ? OFFSET ?';
+                $params = [$limit, $offset];
+            }
+
+            $rows = $this->db->select($sql, $params);
+
+            return $this->populateNews($rows);
+        } catch (Exception $e) {
+            Logger::logError("Failed to list news: " . $e->getMessage());
+            return [];
         }
-
-		$rows = $this->db->select($sql, $params);
-
-        return $this->populateNews($rows);
 	}
 
 	/**
@@ -46,10 +51,15 @@ class NewsManager
 	*/
 	public function addNews($title, $body): int
 	{
-		$sql = "INSERT INTO `news` (`title`, `body`, `created_at`) VALUES (?, ?, ?)";
-        $this->db->exec($sql, [$title, $body, date('Y-m-d')]);
+        try {
+            $sql = "INSERT INTO `news` (`title`, `body`, `created_at`) VALUES (?, ?, ?)";
+            $this->db->exec($sql, [$title, $body, date('Y-m-d')]);
 
-        return $this->db->lastInsertId();
+            return $this->db->lastInsertId();
+        } catch (Exception $e) {
+            Logger::logError("Failed to add news: " . $e->getMessage());
+            return 0;
+        }
 	}
 
 	/**
@@ -57,14 +67,19 @@ class NewsManager
 	*/
 	public function deleteNews($id): bool
     {
-        $comments = $this->commentManager->listCommentsByNewsId($id);
-        foreach ($comments as $comment) {
-            $this->commentManager->deleteComment($comment->getId());
+        try {
+            $comments = $this->commentManager->listCommentsByNewsId($id);
+            foreach ($comments as $comment) {
+                $this->commentManager->deleteComment($comment->getId());
+            }
+
+            $sql = "DELETE FROM `news` WHERE `id` = ?";
+
+            return $this->db->exec($sql, [$id]);
+        } catch (Exception $e) {
+            Logger::logError("Failed to delete news with ID " . $id . ": " . $e->getMessage());
+            return false;
         }
-
-        $sql = "DELETE FROM `news` WHERE `id` = ?";
-
-        return $this->db->exec($sql, [$id]);
     }
 
 	private function populateNews(array $rows): array

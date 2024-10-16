@@ -22,40 +22,60 @@ class CommentManager
 
 	public function listComments($limit = null, $offset = null): array
 	{
-        $sql = 'SELECT * FROM `comment`';
-        $params = [];
+        try {
+            $sql = 'SELECT * FROM `comment`';
+            $params = [];
 
-        if ($limit !== null && $offset !== null) {
-            $sql .= ' LIMIT ? OFFSET ?';
-            $params = [$limit, $offset];
+            if ($limit !== null && $offset !== null) {
+                $sql .= ' LIMIT ? OFFSET ?';
+                $params = [$limit, $offset];
+            }
+
+            $rows = $this->db->select($sql, $params);
+
+            return $this->populateComments($rows);
+        } catch (Exception $e) {
+            Logger::logError("Failed to list comments: " . $e->getMessage());
+            return [];
         }
-
-        $rows = $this->db->select($sql, $params);
-
-        return $this->populateComments($rows);
     }
 
 	public function listCommentsByNewsId($newsId): array
     {
-        $sql = 'SELECT * FROM `comment` WHERE `news_id` = ?';
-        $rows = $this->db->select($sql, [$newsId]);
+        try {
+            $sql = 'SELECT * FROM `comment` WHERE `news_id` = ?';
+            $rows = $this->db->select($sql, [$newsId]);
 
-        return $this->populateComments($rows);
+            return $this->populateComments($rows);
+        } catch (Exception $e) {
+            Logger::logError("Failed to list comments for news ID " . $newsId . ": " . $e->getMessage());
+            return [];
+        }
     }
 
 	public function addCommentForNews($body, $newsId): int
     {
-        $sql = "INSERT INTO `comment` (`body`, `created_at`, `news_id`) VALUES (?, ?, ?)";
-        $this->db->exec($sql, [$body, date('Y-m-d'), $newsId]);
+        try {
+            $sql = "INSERT INTO `comment` (`body`, `created_at`, `news_id`) VALUES (?, ?, ?)";
+            $this->db->exec($sql, [$body, date('Y-m-d'), $newsId]);
 
-        return $this->db->lastInsertId();
+            return $this->db->lastInsertId();
+        } catch (Exception $e) {
+            Logger::logError("Failed to add comment for news ID " . $newsId . ": " . $e->getMessage());
+            return 0;
+        }
     }
 
 	public function deleteComment($id): bool
     {
-        $sql = "DELETE FROM `comment` WHERE `id` = ?";
+        try {
+            $sql = "DELETE FROM `comment` WHERE `id` = ?";
 
-        return $this->db->exec($sql, [$id]);
+            return $this->db->exec($sql, [$id]);
+        } catch (Exception $e) {
+            Logger::logError("Failed to delete comment with ID " . $id . ": " . $e->getMessage());
+            return false;
+        }
     }
 
 	private function populateComments(array $rows): array
